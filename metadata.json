@@ -1,0 +1,6 @@
+{
+  "name": "رفيق المسلم PRO",
+  "description": "تطبيق إسلامي عربي متكامل يعمل دون إنترنت: القرآن الكريم، الأذكار، المسبحة الإلكترونية، التقويم الهجري، الورد اليومي ودفتر التدبر",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
