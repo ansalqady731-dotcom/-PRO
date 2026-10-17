@@ -30,6 +30,7 @@ class DataManager(context: Context) {
         private const val KEY_LAST_READ_SURAH = "last_read_surah"
         private const val KEY_LAST_READ_AYAH = "last_read_ayah"
         private const val KEY_LAST_READ_SURAH_NAME = "last_read_surah_name"
+        private const val KEY_LAST_READ_PAGE = "last_read_page"
 
         private const val KEY_BOOKMARKS = "quran_bookmarks"
         private const val KEY_SURAH_FAVORITES = "quran_surah_favorites"
@@ -120,6 +121,10 @@ class DataManager(context: Context) {
     var lastReadSurahName: String
         get() = prefs.getString(KEY_LAST_READ_SURAH_NAME, "الفاتحة") ?: "الفاتحة"
         set(value) = prefs.edit().putString(KEY_LAST_READ_SURAH_NAME, value).apply()
+
+    var lastReadPage: Int
+        get() = prefs.getInt(KEY_LAST_READ_PAGE, 1)
+        set(value) = prefs.edit().putInt(KEY_LAST_READ_PAGE, value).apply()
 
     // --- Quran Bookmarks ---
     fun getBookmarks(): List<Bookmark> {

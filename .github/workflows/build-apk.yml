@@ -51,13 +51,17 @@ jobs:
 
       - name: Publish Direct APK Release
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
-          tag_name: latest
-          name: "تطبيق رفيق المسلم PRO (APK)"
-          body: "تم بناء التطبيق بنجاح. يمكنك تحميل ملف app-debug.apk مباشرة وتثبيته على هاتفك."
+          tag_name: v1.0.0
+          name: "تطبيق رفيق المسلم PRO - الإصدار المكتمل (APK)"
+          body: |
+            ### تحميل تطبيق رفيق المسلم PRO (نسخة APK للهواتف):
+            - انقر على **`app-debug.apk`** في الأسفل لتحميل التطبيق مباشرة إلى هاتفك وتثبيته.
+            - يحتوي على المصحف كاملاً ١١٤ سورة و ٦٠٤ صفحات مع أحكام التجويد الملونة والتفسير الميسر دون إنترنت.
           draft: false
           prerelease: false
+          make_latest: true
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

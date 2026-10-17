@@ -18,7 +18,30 @@ enum class RevelationType(val labelArabic: String) {
 data class Ayah(
     val numberInSurah: Int,
     val textArabic: String,
-    val juz: Int = 1
+    val surahNumber: Int = 1,
+    val juz: Int = 1,
+    val page: Int = 1,
+    val hizbQuarter: Int = 1,
+    val sajda: Boolean = false,
+    val tafsir: String = ""
+)
+
+data class PageItem(
+    val pageNumber: Int,
+    val surahName: String,
+    val juzNumber: Int,
+    val startAyahNumber: Int
+)
+
+data class Reciter(
+    val id: String,
+    val nameArabic: String,
+    val baseUrl: String
+)
+
+data class WordMeaning(
+    val word: String,
+    val meaning: String
 )
 
 data class Bookmark(
@@ -26,6 +49,7 @@ data class Bookmark(
     val surahNumber: Int,
     val surahName: String,
     val ayahNumber: Int,
+    val page: Int = 1,
     val timestamp: Long = System.currentTimeMillis(),
     val note: String = ""
 )
