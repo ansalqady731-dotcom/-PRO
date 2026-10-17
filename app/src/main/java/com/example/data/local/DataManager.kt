@@ -18,6 +18,10 @@ class DataManager(context: Context) {
     companion object {
         private const val KEY_THEME = "app_theme" // "system", "light", "dark"
         private const val KEY_FONT_SIZE = "quran_font_size"
+        private const val KEY_TAFSIR_FONT_SIZE = "tafsir_font_size"
+        private const val KEY_QURAN_FONT_FAMILY = "quran_font_family"
+        private const val KEY_QURAN_VIEW_MODE = "quran_view_mode" // "mushaf_page" or "flexible_list"
+        private const val KEY_AYAH_FAVORITES = "quran_ayah_favorites"
         private const val KEY_HIJRI_OFFSET = "hijri_offset"
 
         private const val KEY_TASBEEH_COUNT = "tasbeeh_current_count"
@@ -57,6 +61,18 @@ class DataManager(context: Context) {
     var quranFontSize: Float
         get() = prefs.getFloat(KEY_FONT_SIZE, 24f)
         set(value) = prefs.edit().putFloat(KEY_FONT_SIZE, value).apply()
+
+    var tafsirFontSize: Float
+        get() = prefs.getFloat(KEY_TAFSIR_FONT_SIZE, 15f)
+        set(value) = prefs.edit().putFloat(KEY_TAFSIR_FONT_SIZE, value).apply()
+
+    var quranFontFamily: String
+        get() = prefs.getString(KEY_QURAN_FONT_FAMILY, "amiri_quran") ?: "amiri_quran"
+        set(value) = prefs.edit().putString(KEY_QURAN_FONT_FAMILY, value).apply()
+
+    var quranViewMode: String
+        get() = prefs.getString(KEY_QURAN_VIEW_MODE, "mushaf_page") ?: "mushaf_page"
+        set(value) = prefs.edit().putString(KEY_QURAN_VIEW_MODE, value).apply()
 
     var hijriOffset: Int
         get() = prefs.getInt(KEY_HIJRI_OFFSET, 0)
@@ -200,6 +216,30 @@ class DataManager(context: Context) {
             true
         }
         prefs.edit().putStringSet(KEY_SURAH_FAVORITES, current.map { it.toString() }.toSet()).apply()
+        return isFav
+    }
+
+    // --- Ayah Favorites ---
+    fun getFavoriteAyahs(): Set<String> {
+        return prefs.getStringSet(KEY_AYAH_FAVORITES, emptySet()) ?: emptySet()
+    }
+
+    fun isAyahFavorite(surahNumber: Int, ayahNumber: Int): Boolean {
+        val key = "$surahNumber:$ayahNumber"
+        return getFavoriteAyahs().contains(key)
+    }
+
+    fun toggleFavoriteAyah(surahNumber: Int, ayahNumber: Int): Boolean {
+        val key = "$surahNumber:$ayahNumber"
+        val current = getFavoriteAyahs().toMutableSet()
+        val isFav = if (current.contains(key)) {
+            current.remove(key)
+            false
+        } else {
+            current.add(key)
+            true
+        }
+        prefs.edit().putStringSet(KEY_AYAH_FAVORITES, current).apply()
         return isFav
     }
 

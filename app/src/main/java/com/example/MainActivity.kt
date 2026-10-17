@@ -76,6 +76,7 @@ fun MuslimCompanionApp(dataManager: DataManager) {
     // Navigation state stack
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
     var selectedReaderSurahNumber by remember { mutableIntStateOf(dataManager.lastReadSurah) }
+    var selectedReaderPageNumber by remember { mutableStateOf<Int?>(dataManager.lastReadPage) }
     var initialAdhkarCategory by remember { mutableStateOf<String?>(null) }
 
     // Enforce 100% Arabic RTL (Right-to-Left) layout direction
@@ -116,9 +117,10 @@ fun MuslimCompanionApp(dataManager: DataManager) {
                             HomeScreen(
                                 dataManager = dataManager,
                                 onNavigateToQuran = { currentScreen = Screen.Quran },
-                                onNavigateToQuranReader = { surahNum ->
+                                onNavigateToQuranReader = { surahNum, pageNum ->
                                     selectedReaderSurahNumber = surahNum
-                                    currentScreen = Screen.QuranReader(surahNum)
+                                    selectedReaderPageNumber = pageNum
+                                    currentScreen = Screen.QuranReader(surahNum, pageNum)
                                 },
                                 onNavigateToAdhkar = { catId ->
                                     initialAdhkarCategory = catId
@@ -135,16 +137,18 @@ fun MuslimCompanionApp(dataManager: DataManager) {
                         is Screen.Quran -> {
                             QuranScreen(
                                 dataManager = dataManager,
-                                onNavigateToReader = { surahNum ->
+                                onNavigateToReader = { surahNum, pageNum ->
                                     selectedReaderSurahNumber = surahNum
-                                    currentScreen = Screen.QuranReader(surahNum)
+                                    selectedReaderPageNumber = pageNum
+                                    currentScreen = Screen.QuranReader(surahNum, pageNum)
                                 },
                                 onBackClick = { currentScreen = Screen.Home }
                             )
                         }
                         is Screen.QuranReader -> {
                             QuranReaderScreen(
-                                surahNumber = selectedReaderSurahNumber,
+                                surahNumber = screen.surahNumber,
+                                initialPageNumber = screen.initialPageNumber,
                                 dataManager = dataManager,
                                 onBackClick = { currentScreen = Screen.Quran }
                             )

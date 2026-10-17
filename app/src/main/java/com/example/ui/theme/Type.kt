@@ -2,9 +2,25 @@ package com.example.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.example.R
+
+val AmiriQuranFontFamily = FontFamily(
+    Font(R.font.amiri_quran, FontWeight.Normal)
+)
+
+val AmiriFontFamily = FontFamily(
+    Font(R.font.amiri, FontWeight.Normal),
+    Font(R.font.amiri, FontWeight.Bold)
+)
+
+val ScheherazadeFontFamily = FontFamily(
+    Font(R.font.scheherazade_new, FontWeight.Normal),
+    Font(R.font.scheherazade_new, FontWeight.Bold)
+)
 
 val Typography = Typography(
     displayLarge = TextStyle(

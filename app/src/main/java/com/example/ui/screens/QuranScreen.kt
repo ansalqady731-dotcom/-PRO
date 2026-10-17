@@ -16,9 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.LibraryBooks
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +42,7 @@ import com.example.data.model.RevelationType
 import com.example.data.model.Surah
 import com.example.data.quran.*
 import com.example.ui.components.MuslimTopBar
+import com.example.ui.components.TafsirLibraryDialog
 import com.example.ui.theme.IslamicGold
 import com.example.ui.theme.IslamicGoldBright
 import com.example.ui.theme.IslamicGreenPrimary
@@ -49,7 +52,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun QuranScreen(
     dataManager: DataManager,
-    onNavigateToReader: (Int) -> Unit,
+    onNavigateToReader: (Int, Int?) -> Unit,
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -189,7 +192,7 @@ fun QuranScreen(
                                     dataManager.toggleFavoriteSurah(surah.number)
                                     favoriteSurahs = dataManager.getFavoriteSurahs()
                                 },
-                                onClick = { onNavigateToReader(surah.number) }
+                                onClick = { onNavigateToReader(surah.number, null) }
                             )
                         }
                     }
@@ -222,7 +225,7 @@ fun QuranScreen(
                                 page = page,
                                 onClick = {
                                     val targetSurah = allSurahs.find { s -> s.nameArabic == page.surahName }?.number ?: 1
-                                    onNavigateToReader(targetSurah)
+                                    onNavigateToReader(targetSurah, page.pageNumber)
                                 }
                             )
                         }
@@ -239,7 +242,7 @@ fun QuranScreen(
                         items(QuranCatalog.juzList, key = { it.number }) { juz ->
                             JuzCard(juz = juz, onClick = {
                                 val targetSurah = allSurahs.firstOrNull { it.juzStart == juz.number }?.number ?: 1
-                                onNavigateToReader(targetSurah)
+                                onNavigateToReader(targetSurah, null)
                             })
                         }
                     }
@@ -302,7 +305,7 @@ fun QuranScreen(
                                         dataManager.toggleFavoriteSurah(surah.number)
                                         favoriteSurahs = dataManager.getFavoriteSurahs()
                                     },
-                                    onClick = { onNavigateToReader(surah.number) }
+                                    onClick = { onNavigateToReader(surah.number, null) }
                                 )
                             }
                         }
@@ -337,7 +340,7 @@ fun QuranScreen(
                             items(bookmarks, key = { it.id }) { bm ->
                                 BookmarkCard(
                                     bookmark = bm,
-                                    onClick = { onNavigateToReader(bm.surahNumber) },
+                                    onClick = { onNavigateToReader(bm.surahNumber, null) },
                                     onDelete = {
                                         dataManager.deleteBookmark(bm.id)
                                         bookmarks = dataManager.getBookmarks()
@@ -423,6 +426,7 @@ fun OfflineDownloadScreen(
     var importStatus by remember { mutableStateOf<String?>(null) }
     var currentProgressText by remember { mutableStateOf("") }
     var importProgress by remember { mutableFloatStateOf(0f) }
+    var showTafsirLibraryDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -479,12 +483,62 @@ fun OfflineDownloadScreen(
         // Package 2: Tafsir Muyassar
         item {
             ContentPackageCard(
-                title = "التفسير الميسر الكامل",
+                title = "التفسير الميسر والمختصر",
                 subtitle = "تفسير موثوق لجميع آيات القرآن الكريم الـ ٦٢٣٦",
                 sizeText = "2.5 MB",
                 isInstalled = true,
                 badgeText = "مثبت أوفلاين"
             )
+        }
+
+        // Package: Tafsir Library & Translations (Matching Screenshot 4)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showTafsirLibraryDialog = true },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.2.dp, IslamicGreenPrimary.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(IslamicGreenPrimary.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.LibraryBooks,
+                            contentDescription = null,
+                            tint = IslamicGreenPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "مكتبة كتب التفسير والترجمات",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = IslamicGreenPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "المختصر في التفسير، الميسر، والترجمات العالمية (انقر للإدارة)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = IslamicGreenPrimary
+                    )
+                }
+            }
         }
 
         // Package 3: Words & Tajweed
@@ -626,6 +680,10 @@ fun OfflineDownloadScreen(
                 }
             }
         }
+    }
+
+    if (showTafsirLibraryDialog) {
+        TafsirLibraryDialog(onDismiss = { showTafsirLibraryDialog = false })
     }
 }
 

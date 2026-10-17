@@ -40,7 +40,7 @@ import com.example.util.VibrationHelper
 fun HomeScreen(
     dataManager: DataManager,
     onNavigateToQuran: () -> Unit,
-    onNavigateToQuranReader: (Int) -> Unit,
+    onNavigateToQuranReader: (Int, Int?) -> Unit,
     onNavigateToAdhkar: (String?) -> Unit,
     onNavigateToTasbeeh: () -> Unit,
     onNavigateToWird: () -> Unit,
@@ -60,6 +60,7 @@ fun HomeScreen(
     val lastSurah = dataManager.lastReadSurah
     val lastSurahName = dataManager.lastReadSurahName
     val lastAyah = dataManager.lastReadAyah
+    val lastPage = dataManager.lastReadPage
 
     val wirdItems = remember { dataManager.getDailyWirdItems() }
     val completedWirdCount = wirdItems.count { it.isCompleted }
@@ -321,7 +322,7 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .testTag("home_quran_progress_card")
-                .clickable { onNavigateToQuranReader(lastSurah) },
+                .clickable { onNavigateToQuranReader(lastSurah, lastPage) },
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -361,7 +362,7 @@ fun HomeScreen(
                             color = IslamicGold
                         )
                         Text(
-                            text = "سورة $lastSurahName",
+                            text = "سورة $lastSurahName • ص $lastPage",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -374,7 +375,7 @@ fun HomeScreen(
                 }
 
                 Button(
-                    onClick = { onNavigateToQuranReader(lastSurah) },
+                    onClick = { onNavigateToQuranReader(lastSurah, lastPage) },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = IslamicGreenPrimary),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)

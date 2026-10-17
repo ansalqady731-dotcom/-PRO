@@ -40,3 +40,13 @@ val TextTertiaryDark = Color(0xFF758A7E)
 val AccentAmber = Color(0xFFDF9B20)
 val AccentTeal = Color(0xFF1D8E74)
 val AccentRed = Color(0xFFC73E3E)
+
+// Authentic Madina Mushaf Page & Border Palette
+val QuranParchmentLight = Color(0xFFFBF7EE) // Warm ivory paper
+val QuranParchmentDark = Color(0xFF1C1A17)  // Night warm mushaf background
+val QuranFrameBorderGold = Color(0xFFB89047) // Outer/Inner decorative frame gold
+val QuranFrameInnerGold = Color(0xFFD4AF37)
+val QuranSurahHeaderBg = Color(0xFFF4ECE0)
+val QuranSurahHeaderBorder = Color(0xFF9E7B34)
+val QuranAyahHighlight = Color(0x302E7D32)
+val QuranAyahHighlightGold = Color(0x30C6922C)

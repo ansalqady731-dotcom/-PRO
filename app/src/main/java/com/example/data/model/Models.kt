@@ -45,7 +45,7 @@ data class WordMeaning(
 )
 
 data class Bookmark(
-    val id: String,
+    val id: String = java.util.UUID.randomUUID().toString(),
     val surahNumber: Int,
     val surahName: String,
     val ayahNumber: Int,

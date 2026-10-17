@@ -10,5 +10,5 @@ sealed class Screen(val route: String, val titleArabic: String) {
     object Tadabbur : Screen("tadabbur", "دفتر التدبر")
     object Search : Screen("search", "البحث الشامل")
     object Settings : Screen("settings", "الإعدادات")
-    data class QuranReader(val surahNumber: Int) : Screen("quran_reader/$surahNumber", "قراءة السورة")
+    data class QuranReader(val surahNumber: Int, val initialPageNumber: Int? = null) : Screen("quran_reader/$surahNumber", "قراءة المصحف")
 }
