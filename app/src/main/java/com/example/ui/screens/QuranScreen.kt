@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,10 +34,15 @@ import com.example.data.model.RevelationType
 import com.example.data.model.Surah
 import com.example.data.quran.JuzInfo
 import com.example.data.quran.QuranCatalog
+import com.example.data.quran.SurahQuranImporter
+import com.example.data.quran.TajweedColorizer
+import com.example.data.quran.TajweedEncyclopedia
+import com.example.data.quran.TajweedLesson
 import com.example.ui.components.MuslimTopBar
 import com.example.ui.theme.IslamicGold
 import com.example.ui.theme.IslamicGoldBright
 import com.example.ui.theme.IslamicGreenPrimary
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,8 +52,11 @@ fun QuranScreen(
     onNavigateToReader: (Int) -> Unit,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("السور", "الأجزاء", "المفضلة", "العلامات")
+    val tabTitles = listOf("السور", "مصحف التجويد", "الأجزاء", "المفضلة", "العلامات")
 
     var searchQuery by remember { mutableStateOf("") }
     var favoriteSurahs by remember { mutableStateOf(dataManager.getFavoriteSurahs()) }
@@ -54,7 +67,7 @@ fun QuranScreen(
         topBar = {
             MuslimTopBar(
                 title = "القرآن الكريم",
-                subtitle = "١١٤ سورة - ٣٠ جزءاً",
+                subtitle = "١١٤ سورة • مصحف التجويد الملون",
                 onBackClick = onBackClick,
                 actions = {
                     IconButton(
@@ -62,8 +75,8 @@ fun QuranScreen(
                         modifier = Modifier.testTag("quran_import_json_action")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FileUpload,
-                            contentDescription = "استيراد بيانات القرآن",
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "استيراد من surahquran.com",
                             tint = IslamicGold
                         )
                     }
@@ -78,10 +91,11 @@ fun QuranScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             // Tabs
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = IslamicGreenPrimary
+                contentColor = IslamicGreenPrimary,
+                edgePadding = 12.dp
             ) {
                 tabTitles.forEachIndexed { index, title ->
                     Tab(
@@ -97,8 +111,8 @@ fun QuranScreen(
                 }
             }
 
-            // Search Bar (shown for Surahs and Favorites)
-            if (selectedTabIndex == 0 || selectedTabIndex == 2) {
+            // Search Bar (shown for Surahs, Tajweed, and Favorites)
+            if (selectedTabIndex == 0 || selectedTabIndex == 3) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -150,9 +164,12 @@ fun QuranScreen(
                     ) {
                         items(filteredSurahs, key = { it.number }) { surah ->
                             val isFav = favoriteSurahs.contains(surah.number)
+                            val isCached = dataManager.hasCachedSurah(surah.number) || QuranCatalog.preBundledVerses.containsKey(surah.number)
+
                             SurahCard(
                                 surah = surah,
                                 isFavorite = isFav,
+                                isAvailableOffline = isCached,
                                 onFavoriteToggle = {
                                     val nowFav = dataManager.toggleFavoriteSurah(surah.number)
                                     favoriteSurahs = dataManager.getFavoriteSurahs()
@@ -163,6 +180,19 @@ fun QuranScreen(
                     }
                 }
                 1 -> {
+                    // مصحف التجويد وأحكامه (Imported from surahquran.com)
+                    TajweedSectionView(
+                        onOpenPdf = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(TajweedEncyclopedia.SURAH_QURAN_PDF_URL))
+                            context.startActivity(intent)
+                        },
+                        onOpenWeb = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(TajweedEncyclopedia.SURAH_QURAN_PAGE_URL))
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+                2 -> {
                     // 30 Juz
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -171,14 +201,13 @@ fun QuranScreen(
                     ) {
                         items(QuranCatalog.juzList, key = { it.number }) { juz ->
                             JuzCard(juz = juz, onClick = {
-                                // Jump to starting surah of this juz
                                 val targetSurah = QuranCatalog.allSurahsMetadata.firstOrNull { it.juzStart == juz.number }?.number ?: 1
                                 onNavigateToReader(targetSurah)
                             })
                         }
                     }
                 }
-                2 -> {
+                3 -> {
                     // Favorites
                     val favList = remember(favoriteSurahs, searchQuery) {
                         QuranCatalog.allSurahsMetadata.filter { favoriteSurahs.contains(it.number) }
@@ -199,9 +228,11 @@ fun QuranScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(favList, key = { it.number }) { surah ->
+                                val isCached = dataManager.hasCachedSurah(surah.number) || QuranCatalog.preBundledVerses.containsKey(surah.number)
                                 SurahCard(
                                     surah = surah,
                                     isFavorite = true,
+                                    isAvailableOffline = isCached,
                                     onFavoriteToggle = {
                                         dataManager.toggleFavoriteSurah(surah.number)
                                         favoriteSurahs = dataManager.getFavoriteSurahs()
@@ -212,7 +243,7 @@ fun QuranScreen(
                         }
                     }
                 }
-                3 -> {
+                4 -> {
                     // Bookmarks
                     if (bookmarks.isEmpty()) {
                         EmptyStateView(
@@ -251,9 +282,234 @@ fun QuranScreen(
 }
 
 @Composable
+fun TajweedSectionView(
+    onOpenPdf: () -> Unit,
+    onOpenWeb: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Hero Card for Tajweed Quran
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, IslamicGold.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "مصحف التجويد الملون",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = IslamicGreenPrimary
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = IslamicGold.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "دار المعرفة • معتمد",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicGold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "المصحف المجود الملون بالرسم العثماني برواية حفص عن عاصم بخط عثمان طه، الصادر بموافقة الأزهر الشريف والموثق في موقع سورة قرآن (surahquran.com). يشتمل على ثلاثة ألوان رئيسية تغطي 28 حكماً تجويدياً لتيسير تلاوة كتاب الله.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 22.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onOpenPdf,
+                            colors = ButtonDefaults.buttonColors(containerColor = IslamicGreenPrimary),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("تحميل المصحف PDF")
+                        }
+
+                        OutlinedButton(
+                            onClick = onOpenWeb,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("موقع surahquran")
+                        }
+                    }
+                }
+            }
+        }
+
+        // Color Legend Guide
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "دلالات ألوان مصحف التجويد:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = IslamicGold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TajweedColorizer.legendItems.forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(CircleShape)
+                                    .background(item.color)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = item.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Tajweed Encyclopedia Lessons
+        item {
+            Text(
+                text = "دروس وأحكام التجويد (مستوردة من surahquran.com):",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        items(TajweedEncyclopedia.lessons, key = { it.id }) { lesson ->
+            TajweedLessonCard(lesson = lesson)
+        }
+    }
+}
+
+@Composable
+fun TajweedLessonCard(lesson: TajweedLesson) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded },
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = IslamicGreenPrimary.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = lesson.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = IslamicGreenPrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = lesson.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = "تفاصيل الحكم"
+                    )
+                }
+            }
+
+            Text(
+                text = lesson.summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    Text(
+                        text = lesson.detailedContent,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 22.sp
+                    )
+                    if (lesson.examples.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "أمثلة قرآنية: " + lesson.examples.joinToString(" • "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IslamicGold,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun SurahCard(
     surah: Surah,
     isFavorite: Boolean,
+    isAvailableOffline: Boolean,
     onFavoriteToggle: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -320,6 +576,22 @@ fun SurahCard(
                                     IslamicGreenPrimary,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
+                        }
+
+                        if (isAvailableOffline) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = IslamicGreenPrimary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = "تجويد ✓",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = IslamicGreenPrimary,
+                                    fontSize = 10.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
                         }
                     }
 
@@ -502,15 +774,18 @@ fun QuranImportDialog(
     dataManager: DataManager,
     onDismiss: () -> Unit
 ) {
-    var rawInput by remember { mutableStateOf("") }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var isSuccess by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var isBatchImporting by remember { mutableStateOf(false) }
+    var importStatus by remember { mutableStateOf<String?>(null) }
+    var currentProgressText by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "استيراد بيانات المصحف الشريف (JSON)",
+                text = "استيراد المصحف من موقع سورة قرآن",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -518,26 +793,32 @@ fun QuranImportDialog(
         text = {
             Column {
                 Text(
-                    text = "حرصاً على ضبط القرآن الكريم، يمكنك هنا استيراد ملف JSON معتمد (مثل مصحف مجمع الملك فهد أو تنزيل) بالهيكل القياسي.",
+                    text = "الموقع المعتمد: surahquran.com\nيقوم هذا الزر باستيراد وحفظ السور الكريمة بنصها العثماني المعتمد مع كامل الضبط التجويدي للعمل دون اتصال بالإنترنت:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = rawInput,
-                    onValueChange = { rawInput = it },
-                    placeholder = { Text("الصق بيانات JSON المعتمدة هنا...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    shape = RoundedCornerShape(8.dp)
-                )
+                Spacer(modifier = Modifier.height(10.dp))
 
-                if (statusMessage != null) {
+                if (isBatchImporting) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = IslamicGreenPrimary)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = currentProgressText,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                if (importStatus != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = statusMessage ?: "",
-                        color = if (isSuccess) IslamicGreenPrimary else MaterialTheme.colorScheme.error,
+                        text = importStatus ?: "",
+                        color = IslamicGreenPrimary,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -547,34 +828,35 @@ fun QuranImportDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (rawInput.isBlank()) {
-                        statusMessage = "يرجى لصق بيانات JSON صحيحة أولاً"
-                        isSuccess = false
-                        return@Button
-                    }
-                    try {
-                        val parsed = JSONObject(rawInput)
-                        // Verify minimal structural integrity
-                        if (!parsed.has("surahs") && !parsed.has("quran")) {
-                            statusMessage = "بنية JSON غير متوافقة: يجب أن يحتوي الملف على مصفوفة surahs أو quran"
-                            isSuccess = false
-                            return@Button
+                    isBatchImporting = true
+                    importStatus = null
+                    coroutineScope.launch {
+                        // Import prominent recited surahs from surahquran.com
+                        val targetSurahs = listOf(1, 36, 55, 56, 67, 112, 113, 114)
+                        var successCount = 0
+                        for (sNum in targetSurahs) {
+                            val sName = QuranCatalog.allSurahsMetadata.find { it.number == sNum }?.nameArabic ?: ""
+                            currentProgressText = "جارٍ استيراد سورة $sName من surahquran.com..."
+                            val res = SurahQuranImporter.fetchSurah(sNum)
+                            if (res.isSuccess) {
+                                res.getOrNull()?.let { ayahs ->
+                                    dataManager.saveCachedSurahVerses(sNum, ayahs)
+                                    successCount++
+                                }
+                            }
                         }
-                        dataManager.saveImportedQuranRaw(rawInput)
-                        statusMessage = "تم التحقق من بنية البيانات وحفظها محلياً بنجاح!"
-                        isSuccess = true
-                    } catch (e: Exception) {
-                        statusMessage = "خطأ في قراءة ملف JSON: ${e.message}"
-                        isSuccess = false
+                        isBatchImporting = false
+                        importStatus = "تم استيراد $successCount سور بنجاح وتخزينها محلياً في هاتفك!"
                     }
                 },
+                enabled = !isBatchImporting,
                 colors = ButtonDefaults.buttonColors(containerColor = IslamicGreenPrimary)
             ) {
-                Text("تحقق واستيراد")
+                Text("بدء استيراد السور الأساسية")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isBatchImporting) {
                 Text("إغلاق")
             }
         }

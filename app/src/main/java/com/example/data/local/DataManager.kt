@@ -387,6 +387,48 @@ class DataManager(context: Context) {
         get() = prefs.getString(KEY_EVENING_REMINDER_TIME, "17:30") ?: "17:30"
         set(value) = prefs.edit().putString(KEY_EVENING_REMINDER_TIME, value).apply()
 
+    // --- Cached Surahs from surahquran.com ---
+    fun getCachedSurahVerses(surahNumber: Int): List<com.example.data.model.Ayah>? {
+        val raw = prefs.getString("cached_surah_$surahNumber", null) ?: return null
+        return try {
+            val jsonArray = JSONArray(raw)
+            val list = mutableListOf<com.example.data.model.Ayah>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(
+                    com.example.data.model.Ayah(
+                        numberInSurah = obj.getInt("numberInSurah"),
+                        textArabic = obj.getString("textArabic"),
+                        juz = obj.optInt("juz", 1)
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun saveCachedSurahVerses(surahNumber: Int, ayahs: List<com.example.data.model.Ayah>) {
+        val arr = JSONArray()
+        ayahs.forEach {
+            val obj = JSONObject()
+            obj.put("numberInSurah", it.numberInSurah)
+            obj.put("textArabic", it.textArabic)
+            obj.put("juz", it.juz)
+            arr.put(obj)
+        }
+        prefs.edit().putString("cached_surah_$surahNumber", arr.toString()).apply()
+    }
+
+    fun hasCachedSurah(surahNumber: Int): Boolean {
+        return prefs.contains("cached_surah_$surahNumber")
+    }
+
+    var isTajweedModeEnabled: Boolean
+        get() = prefs.getBoolean("tajweed_mode_enabled", true)
+        set(value) = prefs.edit().putBoolean("tajweed_mode_enabled", value).apply()
+
     // --- External Quran Data Importer ---
     fun getImportedQuranRaw(): String? = prefs.getString(KEY_EXTERNAL_QURAN_DATA, null)
 

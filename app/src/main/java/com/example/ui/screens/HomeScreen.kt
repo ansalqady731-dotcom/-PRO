@@ -570,6 +570,7 @@ fun HomeScreen(
 
         val shortcuts = listOf(
             ShortcutItem("القرآن الكريم", Icons.Default.MenuBook, onNavigateToQuran),
+            ShortcutItem("مصحف التجويد", Icons.Default.Palette, onNavigateToQuran),
             ShortcutItem("الأذكار والأدعية", Icons.Default.WbSunny, { onNavigateToAdhkar(null) }),
             ShortcutItem("المسبحة", Icons.Default.Fingerprint, onNavigateToTasbeeh),
             ShortcutItem("التقويم الهجري", Icons.Default.CalendarMonth, onNavigateToCalendar),
